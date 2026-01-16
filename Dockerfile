@@ -7,6 +7,13 @@ ENV PORT=3000
 ENV WORKERS=3
 ENV MAX_CONCURRENT_JOBS=5
 
+# Install system dependencies (fonts for rendering)
+RUN apt-get update && apt-get install -y \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create app directory
 WORKDIR /app
 
