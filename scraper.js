@@ -261,11 +261,22 @@ async function collectListingUrls(browser, query, maxUrls) {
         try {
             await page.waitForSelector(SELECTORS.LISTING_LINK, { timeout: 15000 });
         } catch (e) {
-            console.log('[Scraper] No listings appeared - taking debug screenshot');
-            // Screenshot for debugging (saved to volume)
+            console.log('[Scraper] No listings appeared - taking debug snapshot');
             try {
+                const title = await page.title();
+                console.log(`[Scraper] Page Title: "${title}"`);
+
+                // Screenshot
                 await page.screenshot({ path: '/data/debug_error.png', fullPage: true });
-            } catch (s) { }
+
+                // Save HTML for inspection
+                const html = await page.content();
+                const fs = require('fs');
+                fs.writeFileSync('/data/debug_error.html', html);
+                console.log('[Scraper] Saved debug_error.png and debug_error.html to /data');
+            } catch (s) {
+                console.log('[Scraper] Debug save failed:', s.message);
+            }
             return [];
         }
 

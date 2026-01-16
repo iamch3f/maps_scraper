@@ -1,8 +1,8 @@
 const http = require('http');
 
 const data = JSON.stringify({
-    query: "isparta ges firma",
-    maxResults: 3
+    query: "antalya ges firma",
+    maxResults: 7
 });
 
 const options = {
