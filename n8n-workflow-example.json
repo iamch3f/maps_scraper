@@ -1,0 +1,115 @@
+{
+    "name": "Google Maps Scraper Workflow",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "start",
+            "name": "Start",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://scraper:3000/scrape",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "{\n  \"query\": \"istanbul kuaför\",\n  \"maxResults\": 20,\n  \"language\": \"tr\"\n}",
+                "options": {}
+            },
+            "id": "scrape-request",
+            "name": "Scrape Google Maps",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                460,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Process scraped results\nconst results = $input.first().json.results;\n\nreturn results.map(item => ({\n  json: {\n    name: item.name,\n    phone: item.phone,\n    email: '', // Not scraped\n    website: item.website,\n    address: item.address,\n    rating: item.rating,\n    reviews: item.reviews,\n    source: 'Google Maps',\n    scrapedAt: new Date().toISOString()\n  }\n}));"
+            },
+            "id": "process-results",
+            "name": "Process Results",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                680,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "documentId": {
+                    "__rl": true,
+                    "value": "YOUR_SPREADSHEET_ID",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Sheet1",
+                    "mode": "list",
+                    "cachedResultName": "Sheet1"
+                },
+                "columns": {
+                    "mappingMode": "autoMapInputData",
+                    "value": {}
+                },
+                "options": {}
+            },
+            "id": "google-sheets",
+            "name": "Save to Sheets",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                900,
+                300
+            ],
+            "disabled": true
+        }
+    ],
+    "connections": {
+        "Start": {
+            "main": [
+                [
+                    {
+                        "node": "Scrape Google Maps",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scrape Google Maps": {
+            "main": [
+                [
+                    {
+                        "node": "Process Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Results": {
+            "main": [
+                [
+                    {
+                        "node": "Save to Sheets",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    }
+}

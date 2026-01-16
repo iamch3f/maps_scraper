@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  scraper-api:
+    build: .
+    container_name: google-maps-scraper
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - WORKERS=3
+      - MAX_CONCURRENT_JOBS=5
+      # Optional: API key for authentication
+      # - API_KEY=your-secret-key
+      # Optional: Proxy for avoiding bans
+      # - PROXY_URL=http://user:pass@proxy:port
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    # VPS Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    # Increase shared memory for Chromium
+    shm_size: '2gb'
+    # Security
+    security_opt:
+      - no-new-privileges:true

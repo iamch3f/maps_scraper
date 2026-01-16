@@ -1,0 +1,5 @@
+{
+    "query": "isparta ges firma",
+    "maxResults": 5,
+    "workers": 3
+}

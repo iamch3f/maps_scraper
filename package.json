@@ -1,0 +1,20 @@
+{
+    "name": "google-maps-scraper-api",
+    "version": "1.0.0",
+    "description": "Google Maps Scraper with HTTP API for n8n integration",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node --watch server.js"
+    },
+    "dependencies": {
+        "express": "^4.21.0",
+        "playwright": "^1.52.0",
+        "uuid": "^11.0.0",
+        "dotenv": "^16.4.0"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}
