@@ -85,7 +85,9 @@ class BrowserPool {
                 '--disable-translate',
                 '--metrics-recording-only',
                 '--mute-audio',
-                '--no-default-browser-check'
+                '--no-default-browser-check',
+                '--window-size=1920,1080',
+                '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
             ]
         });
     }
@@ -234,11 +236,36 @@ async function collectListingUrls(browser, query, maxUrls) {
         // Extra wait for Maps JavaScript to render
         await page.waitForTimeout(3000);
 
+        // Handle Cookie Consent (Accept All)
+        try {
+            const consentSelectors = [
+                'button[aria-label="Accept all"]',
+                'button:has-text("Accept all")',
+                'button:has-text("Kabul et")',
+                'form[action*="/consent"] button:last-child'
+            ];
+
+            for (const selector of consentSelectors) {
+                if (await page.locator(selector).isVisible()) {
+                    console.log(`[Scraper] Clicking consent button: ${selector}`);
+                    await page.click(selector);
+                    await page.waitForTimeout(2000);
+                    break;
+                }
+            }
+        } catch (e) {
+            // Ignore consent errors
+        }
+
         // Wait for first listing
         try {
             await page.waitForSelector(SELECTORS.LISTING_LINK, { timeout: 15000 });
         } catch (e) {
-            console.log('[Scraper] No listings appeared');
+            console.log('[Scraper] No listings appeared - taking debug screenshot');
+            // Screenshot for debugging (saved to volume)
+            try {
+                await page.screenshot({ path: '/data/debug_error.png', fullPage: true });
+            } catch (s) { }
             return [];
         }
 
