@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import fs from 'fs';
 
 /**
  * Google Maps Scraper - OPTIMIZED VERSION
@@ -236,42 +237,48 @@ async function collectListingUrls(browser, query, maxUrls) {
         // Extra wait for Maps JavaScript to render
         await page.waitForTimeout(3000);
 
-        // Handle Cookie Consent (Accept All)
+        // Handle Cookie Consent (Comprehensive)
         try {
             const consentSelectors = [
                 'button[aria-label="Accept all"]',
+                'button[aria-label="Agree to the use of cookies and other data for the purposes described"]',
                 'button:has-text("Accept all")',
                 'button:has-text("Kabul et")',
-                'form[action*="/consent"] button:last-child'
+                'button:has-text("I agree")',
+                'button:has-text("Agree")',
+                'button:has-text("Alle akzeptieren")',
+                'button:has-text("Tout accepter")',
+                'form[action*="/consent"] button:last-child',
+                'form[action*="/consent"] button'
             ];
 
+            // Wait a bit for consent to appear
+            await page.waitForTimeout(1000);
+
             for (const selector of consentSelectors) {
-                if (await page.locator(selector).isVisible()) {
-                    console.log(`[Scraper] Clicking consent button: ${selector}`);
+                if (await page.locator(selector).first().isVisible()) {
+                    console.log(`[Scraper] Found consent button: ${selector}`);
                     await page.click(selector);
-                    await page.waitForTimeout(2000);
+                    await page.waitForTimeout(3000); // Wait for reload
                     break;
                 }
             }
         } catch (e) {
-            // Ignore consent errors
+            console.log('[Scraper] Consent check error:', e.message);
         }
 
         // Wait for first listing
         try {
-            await page.waitForSelector(SELECTORS.LISTING_LINK, { timeout: 15000 });
+            await page.waitForSelector(SELECTORS.LISTING_LINK, { timeout: 20000 });
         } catch (e) {
             console.log('[Scraper] No listings appeared - taking debug snapshot');
             try {
                 const title = await page.title();
                 console.log(`[Scraper] Page Title: "${title}"`);
 
-                // Screenshot
                 await page.screenshot({ path: '/data/debug_error.png', fullPage: true });
 
-                // Save HTML for inspection
                 const html = await page.content();
-                const fs = require('fs');
                 fs.writeFileSync('/data/debug_error.html', html);
                 console.log('[Scraper] Saved debug_error.png and debug_error.html to /data');
             } catch (s) {
@@ -279,6 +286,7 @@ async function collectListingUrls(browser, query, maxUrls) {
             }
             return [];
         }
+
 
         // Scroll to load listings
         let previousCount = 0;
