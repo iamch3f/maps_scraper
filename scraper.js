@@ -292,13 +292,27 @@ async function collectListingUrls(browser, query, maxUrls) {
         let previousCount = 0;
         let stableCount = 0;
 
-        while (stableCount < 3) {
-            await page.mouse.wheel(0, 5000);
+        while (stableCount < 5) {
+            // Try specific sidebar scroll first
+            const sidebar = page.locator('div[role="feed"]');
+            if (await sidebar.count() > 0) {
+                await sidebar.first().hover();
+                await page.mouse.wheel(0, 5000);
+                await page.waitForTimeout(1000); // Wait for render
+
+                // Also force scroll event via JS
+                await sidebar.first().evaluate(el => el.scrollBy(0, 5000));
+            } else {
+                // Fallback to global scroll
+                await page.mouse.wheel(0, 5000);
+            }
 
             // Smart wait: wait for network to quiet down
             await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => { });
+            await page.waitForTimeout(1000); // Extra safety wait
 
             const currentCount = await page.locator(SELECTORS.LISTING_LINK).count();
+            console.log(`[Scraper] Scrolled... Found ${currentCount} listings (Target: ${maxUrls})`);
 
             if (currentCount >= maxUrls) break;
 
@@ -352,7 +366,7 @@ async function scrapeUrlChunk(browser, urls, workerId, globalSeen, maxTotal) {
                     }
                 }
             } catch (e) {
-                // Skip failed URLs silently
+                console.log(`[Worker ${workerId}] Chunk error: ${e.message}`);
             }
         }
     } finally {
@@ -366,18 +380,21 @@ async function scrapeUrlChunk(browser, urls, workerId, globalSeen, maxTotal) {
  * Scrape a direct place URL (faster than clicking)
  */
 async function scrapeDirectUrl(page, url) {
-    await page.goto(url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000
-    });
-
-    // Smart wait for name element
     try {
+        await page.goto(url, {
+            waitUntil: 'load',
+            timeout: 30000
+        });
+
+        await handleConsent(page);
+
+        // Smart wait for name element
         await page.waitForSelector(SELECTORS.NAME, {
             state: 'visible',
-            timeout: 5000
+            timeout: 10000
         });
     } catch (e) {
+        console.log(`[Scraper] Failed to load direct URL: ${url} - ${e.message}`);
         return null;
     }
 
@@ -404,6 +421,16 @@ async function scrapeDirectUrl(page, url) {
     ]);
 
     business.name = name?.trim();
+
+    if (!business.name) {
+        console.log(`[Scraper] Name not found for ${url} - saving debug_details.html`);
+        try {
+            const html = await page.content();
+            fs.writeFileSync('/data/debug_details.html', html);
+            await page.screenshot({ path: '/data/debug_details.png', fullPage: true });
+        } catch (e) { }
+    }
+
     business.address = address;
     business.phone = normalizePhone(phone);
 
@@ -509,3 +536,41 @@ export async function cleanup() {
 }
 
 export default scrapeGoogleMaps;
+/**
+ * Helper: Handle Google Consent Popup
+ */
+async function handleConsent(page) {
+    try {
+        const consentSelectors = [
+            'button[aria-label="Accept all"]',
+            'button[aria-label="Agree to the use of cookies and other data for the purposes described"]',
+            'button:has-text("Accept all")',
+            'button:has-text("Kabul et")',
+            'button:has-text("I agree")',
+            'button:has-text("Agree")',
+            'button:has-text("Alle akzeptieren")',
+            'button:has-text("Tout accepter")',
+            'form[action*="/consent"] button:last-child',
+            'form[action*="/consent"] button'
+        ];
+
+        // Quick check if any exist (500ms timeout)
+        try {
+            await page.waitForSelector(consentSelectors.join(','), { timeout: 1000 });
+        } catch (e) {
+            return; // No consent needed
+        }
+
+        for (const selector of consentSelectors) {
+            if (await page.locator(selector).first().isVisible()) {
+                console.log(`[Scraper] Found consent button: ${selector}`);
+                await page.click(selector);
+                await page.waitForTimeout(2000); // Wait for reload
+                return true;
+            }
+        }
+    } catch (e) {
+        // Ignore errors
+    }
+    return false;
+}
