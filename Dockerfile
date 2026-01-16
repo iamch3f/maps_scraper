@@ -1,5 +1,5 @@
 # Google Maps Scraper API - VPS Optimized
-FROM mcr.microsoft.com/playwright:v1.52.0-jammy
+FROM mcr.microsoft.com/playwright:v1.57.0-jammy
 
 # Set environment
 ENV NODE_ENV=production
